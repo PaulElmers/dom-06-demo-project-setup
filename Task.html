@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f8f8f8;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        form {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        #resultsContainer {
+            margin-bottom: 20px;
+        }
+
+        #resultsContainer div {
+            background-color: #fff;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #movieDetailsContainer {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Movie Search</h1>
+    <form id="searchForm">
+        <label for="searchInput">Назва фільму:</label>
+        <input type="text" id="searchInput" required>
+        <label for="typeSelect">Тип:</label>
+        <select id="typeSelect">
+            <option value="movie">Фільм</option>
+            <option value="series">Серіал</option>
+            <option value="episode">Епізод</option>
+        </select>
+        <button type="submit">Пошук</button>
+    </form>
+
+    <div id="resultsContainer"></div>
+    <div id="paginationContainer"></div>
+    <div id="movieDetailsContainer"></div>
+
+    <script>
+        $(document).ready(function() {
+            let currentPage = 1;
+            let totalResults = 0;
+
+            $('#searchForm').submit(function(event) {
+                event.preventDefault(); // Prevent default form submission
+
+                const apiKey = 'your_api_key_here'; // Замініть це на ваш ключ API OMDB
+                const searchTerm = $('#searchInput').val();
+                const searchType = $('#typeSelect').val();
+
+                // AJAX запит до OMDB API для першої сторінки
+                $.ajax({
+                    url: `http://www.omdbapi.com/?apikey=${apiKey}&s=${searchTerm}&type=${searchType}&page=${currentPage}`,
+                    success: function(response) {
+                        if (response.Response === 'True') {
+                            totalResults = parseInt(response.totalResults);
+
+                            // Очистити контейнери з результатами, пагінацією і деталями фільму
+                            $('#resultsContainer').empty();
+                            $('#paginationContainer').empty();
+                            $('#movieDetailsContainer').empty();
+
+                            // Показати знайдені фільми
+                            response.Search.forEach(function(movie) {
+                                const movieElement = $(`<div>${movie.Title} (${movie.Year}) <button class="detailsButton" data-id="${movie.imdbID}">Details</button></div>`);
+                                $('#resultsContainer').append(movieElement);
+                            });
+
+                            // Створити пагінацію, якщо є більше результатів
+                            if (totalResults > 10) {
+                                createPagination();
+                            }
+                        } else {
+                            // Вивести повідомлення про помилку
+                            $('#resultsContainer').text('Movie not found!');
+                            $('#paginationContainer').empty();
+                        }
+                    },
+                    error: function() {
+                        $('#resultsContainer').text('Помилка під час запиту до сервера.');
+                        $('#paginationContainer').empty();
+                    }
+                });
+            });
+
+            // Функція для створення пагінації
+            function createPagination() {
+                const numPages = Math.ceil(totalResults / 10);
+                for (let i = 1; i <= numPages; i++) {
+                    $('#paginationContainer').append(`<button class="pageButton" data-page="${i}">${i}</button>`);
+                }
+
+                // Обробник натискання кнопки сторінки
+                $('.pageButton').click(function() {
+                    currentPage = parseInt($(this).attr('data-page'));
+                    $('#searchForm').submit(); // Викликати AJAX запит для обраної сторінки
+                });
+            }
+
+            // Обробник натискання кнопки "Details"
+            $(document).on('click', '.detailsButton', function() {
+                const movieId = $(this).attr('data-id');
+
+                // AJAX запит для отримання деталей фільму за його ID
+                $.ajax({
+                    url: `http://www.omdbapi.com/?apikey=${apiKey}&i=${movieId}`,
+                    success: function(movieDetails) {
+                        // Вивести деталі фільму під списком знайдених фільмів
+                        $('#movieDetailsContainer').html(`
+                            <h2>${movieDetails.Title}</h2>
+                            <p><strong>Рік:</strong> ${movieDetails.Year}</p>
+                            <p><strong>Рейтинг:</strong> ${movieDetails.imdbRating}</p>
+                            <p><strong>Тривалість:</strong> ${movieDetails.Runtime}</p>
+                            <p><strong>Опис:</strong> ${movieDetails.Plot}</p>
+                        `);
+                    },
+                    error: function() {
+                        $('#movieDetailsContainer').text('Помилка під час завантаження деталей фільму.');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
